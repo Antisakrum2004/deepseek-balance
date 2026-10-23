@@ -1,0 +1,23 @@
+# OS noise
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Local runs and scratch shots
+node_modules/
+.tmp-*/
+tmp/
+*.log
+
+# Installer backups of the DSH profile patch
+*.bak-*
+
+# Would ever only appear if someone copied a credential into the repo
+.credentials.yaml
+.env
+.env.*

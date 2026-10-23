@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: syntax and manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Host half parses as ESM
+        run: node --check skill/assets/plugin/lib/index.js
+
+      - name: Client bundle parses
+        run: node --check skill/assets/plugin/lib/client.js
+
+      - name: Manifest is valid and declares the client entry
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const p = JSON.parse(fs.readFileSync("skill/assets/plugin/package.json", "utf8"));
+            if (!p.dsh?.client) throw new Error("missing dsh.client declaration");
+            if (!p.exports?.["./client"]) throw new Error("missing exports[\"./client\"]");
+            if (p.name !== "@local/dsh-token-balance") throw new Error("unexpected plugin name");
+            console.log("manifest ok:", p.name, p.version);
+          '
+
+      - name: Skill frontmatter names the skill
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const text = fs.readFileSync("skill/SKILL.md", "utf8");
+            const m = /^name:\s*([A-Za-z0-9._-]+)\s*$/m.exec(text);
+            if (!m) throw new Error("SKILL.md has no name in frontmatter");
+            console.log("skill name:", m[1]);
+          '
+
+      - name: No credentials in the tree
+        run: |
+          if git ls-files | grep -E '(^|/)\.credentials(\.yaml)?$|(^|/)\.env$'; then
+            echo "::error::credential file is tracked"; exit 1
+          fi
+          if git grep -nE 'sk-[A-Za-z0-9_-]{20,}|github_pat_[A-Za-z0-9_]{20,}' -- . ':!*.png'; then
+            echo "::error::possible secret committed"; exit 1
+          fi
